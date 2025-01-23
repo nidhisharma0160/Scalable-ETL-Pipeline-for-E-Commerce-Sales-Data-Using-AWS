@@ -1,0 +1,23 @@
+import boto3
+import pandas as pd
+
+# AWS S3 Configuration
+s3 = boto3.client('s3')
+bucket_name = 'your-s3-bucket-name'
+raw_data_prefix = 'raw-data/'
+
+# Function to list files in S3 bucket
+def list_s3_files(bucket, prefix):
+    response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    return [item['Key'] for item in response.get('Contents', []) if item['Key'].endswith('.csv')]
+
+# Function to read CSV files from S3
+def read_csv_from_s3(bucket, key):
+    response = s3.get_object(Bucket=bucket, Key=key)
+    return pd.read_csv(response['Body'])
+
+# Example Usage
+file_keys = list_s3_files(bucket_name, raw_data_prefix)
+data_frames = [read_csv_from_s3(bucket_name, key) for key in file_keys]
+raw_data = pd.concat(data_frames)
+print(raw_data.head())
