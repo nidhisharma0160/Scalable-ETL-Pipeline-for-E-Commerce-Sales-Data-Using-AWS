@@ -1,0 +1,18 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, lit
+
+# Initialize PySpark
+spark = SparkSession.builder \
+    .appName('ETL Pipeline') \
+    .getOrCreate()
+
+# Load data into Spark DataFrame
+raw_spark_df = spark.createDataFrame(raw_data)
+
+# Transformation Example
+transformed_df = raw_spark_df \
+    .withColumn('total_sales', col('quantity') * col('price')) \
+    .withColumn('profit_margin', col('total_sales') - col('cost')) \
+    .withColumn('processed_date', lit('2025-01-01'))
+
+transformed_df.show()
