@@ -1,0 +1,90 @@
+import boto3
+import pandas as pd
+import requests
+from sqlalchemy import create_engine
+import json
+from io import StringIO
+
+# AWS Configuration
+s3 = boto3.client('s3')
+bucket_name = 's3-bucket-name'
+raw_data_prefix = 'raw-data/'
+api_url = 'https://example.com/api/sales-data'
+redshift_host = 'redshift-cluster-endpoint'
+redshift_port = '5439'
+redshift_db = 'database-name'
+redshift_user = 'username'
+redshift_password = 'password'
+
+# Helper Functions
+def list_s3_files(bucket, prefix):
+    """List all CSV files in the S3 bucket with the specified prefix."""
+    response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    return [item['Key'] for item in response.get('Contents', []) if item['Key'].endswith('.csv')]
+
+def read_csv_from_s3(bucket, key):
+    """Read a CSV file from S3 and return it as a Pandas DataFrame."""
+    response = s3.get_object(Bucket=bucket, Key=key)
+    return pd.read_csv(response['Body'])
+
+def fetch_api_data(url):
+    """Fetch data from the API endpoint and return it as a Pandas DataFrame."""
+    headers = {'Authorization': 'api-key'}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return pd.DataFrame(response.json())
+    else:
+        raise Exception(f"Failed to fetch API data: {response.status_code}")
+
+def transform_data(raw_data, api_data):
+    """Transform raw and API data into a unified and analytics-ready format."""
+    combined_data = pd.concat([raw_data, api_data])
+    combined_data['total_sales'] = combined_data['quantity'] * combined_data['price']
+    combined_data['profit_margin'] = combined_data['total_sales'] - combined_data['cost']
+    combined_data['processed_date'] = pd.Timestamp.now().strftime('%Y-%m-%d')
+    return combined_data
+
+def load_to_redshift(df, table_name):
+    """Load the transformed data into an AWS Redshift table."""
+    engine = create_engine(
+        f"postgresql://{redshift_user}:{redshift_password}@{redshift_host}:{redshift_port}/{redshift_db}"
+    )
+    df.to_sql(table_name, engine, index=False, if_exists='append')
+    print(f"Data loaded into Redshift table {table_name} successfully.")
+
+# Lambda Handler
+def lambda_handler(event, context):
+    try:
+        # Step 1: Extract data from S3
+        print("Extracting data from S3...")
+        file_keys = list_s3_files(bucket_name, raw_data_prefix)
+        raw_data_frames = [read_csv_from_s3(bucket_name, key) for key in file_keys]
+        raw_data = pd.concat(raw_data_frames)
+        print("Data extracted from S3.")
+
+        # Step 2: Fetch data from API
+        print("Fetching data from API...")
+        api_data = fetch_api_data(api_url)
+        print("Data fetched from API.")
+
+        # Step 3: Combine and transform data
+        print("Transforming data...")
+        transformed_data = transform_data(raw_data, api_data)
+        print("Data transformed.")
+
+        # Step 4: Load data into Redshift
+        print("Loading data into Redshift...")
+        load_to_redshift(transformed_data, 'sales_data')
+        print("Data loaded into Redshift.")
+
+        return {
+            'statusCode': 200,
+            'body': json.dumps('ETL Pipeline executed successfully!')
+        }
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps(f"ETL Pipeline failed: {str(e)}")
+        }
