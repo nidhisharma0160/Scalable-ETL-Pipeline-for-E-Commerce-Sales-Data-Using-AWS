@@ -1,0 +1,12 @@
+CREATE TABLE sales_data (
+    order_id VARCHAR(50),
+    product_id VARCHAR(50),
+    quantity INT,
+    price DECIMAL(10, 2),
+    cost DECIMAL(10, 2),
+    total_sales DECIMAL(10, 2),
+    profit_margin DECIMAL(10, 2),
+    processed_date DATE
+) 
+DISTSTYLE EVEN
+SORTKEY (processed_date);
