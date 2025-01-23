@@ -1,0 +1,20 @@
+from sqlalchemy import create_engine
+
+# Redshift Configuration
+redshift_host = 'your-redshift-cluster-endpoint'
+redshift_port = '5439'
+redshift_db = 'your-database-name'
+redshift_user = 'your-username'
+redshift_password = 'your-password'
+
+# Create Redshift Connection
+engine = create_engine(f"postgresql://{redshift_user}:{redshift_password}@{redshift_host}:{redshift_port}/{redshift_db}")
+
+# Load DataFrame into Redshift
+def load_to_redshift(df, table_name):
+    df.to_sql(table_name, engine, index=False, if_exists='append')
+    print(f"Data loaded into {table_name} successfully.")
+
+# Example Usage
+transformed_pandas_df = transformed_df.toPandas()
+load_to_redshift(transformed_pandas_df, 'sales_data')
