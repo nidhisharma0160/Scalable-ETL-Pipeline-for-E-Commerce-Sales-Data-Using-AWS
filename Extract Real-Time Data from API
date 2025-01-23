@@ -1,0 +1,17 @@
+import requests
+
+# API Configuration
+api_url = 'https://example.com/api/sales-data'
+headers = {'Authorization': 'Bearer your-api-key'}
+
+# Function to fetch data from API
+def fetch_api_data(url, headers):
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return pd.DataFrame(response.json())
+    else:
+        raise Exception(f"Failed to fetch API data: {response.status_code}")
+
+# Example Usage
+api_data = fetch_api_data(api_url, headers)
+print(api_data.head())
